@@ -8456,20 +8456,18 @@ var __webpack_exports__ = {};
 /* harmony import */ var _actions_github__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(_actions_github__WEBPACK_IMPORTED_MODULE_1__);
 
 
-function main() {
-    try {
-        // `who-to-greet` input defined in action metadata file
-        const nameToGreet = core.getInput('who-to-greet');
-        console.log(`Hello ${nameToGreet}!`);
-        const time = new Date().toTimeString();
-        core.setOutput('time', time);
-        // Get the JSON webhook payload for the event that triggered the workflow
-        const payload = JSON.stringify(github.context.payload, undefined, 2);
-        console.log(`The event payload: ${payload}`);
-    }
-    catch (error) {
-        core.setFailed(error.message);
-    }
+try {
+    // `who-to-greet` input defined in action metadata file
+    const nameToGreet = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('who-to-greet');
+    console.log(`Hello ${nameToGreet}!`);
+    const time = new Date().toTimeString();
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('time', time);
+    // Get the JSON webhook payload for the event that triggered the workflow
+    const payload = JSON.stringify(_actions_github__WEBPACK_IMPORTED_MODULE_1__.context.payload, undefined, 2);
+    console.log(`The event payload: ${payload}`);
+}
+catch (error) {
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed(error.message);
 }
 
 })();

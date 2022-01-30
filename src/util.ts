@@ -6,23 +6,6 @@ import { Node } from 'unist'
 import { Element } from 'hast'
 import { visit } from 'unist-util-visit'
 
-type NoteInRes = {
-  repository: {
-    release: {
-      descriptionHTML: string
-    }
-  }
-}
-
-export function noteInRes(res: unknown): res is NoteInRes {
-  if (res instanceof Object && res.hasOwnProperty('repository')) {
-    const repository = (res as { repository: unknown }).repository
-    if (repository instanceof Object && repository.hasOwnProperty('release')) {
-    }
-  }
-  return false
-}
-
 export async function note(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,

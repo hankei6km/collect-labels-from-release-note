@@ -16,3 +16,5 @@ jobs:
         run: echo "${LABELS}"
         env:
           LABELS: ${{ steps.collect.outputs.labels }}
+      - name: Contains as string
+        run: echo "${{ contains(steps.collect.outputs.labels, "test") }}"

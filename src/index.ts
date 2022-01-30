@@ -9,9 +9,9 @@ try {
   if (repo.length !== 2) {
     throw new Error(`repository: the input is invalid : ${repository}`)
   }
-  const owner = repository[0]
-  const name = repository[1]
-  const tagName = core.getInput('tagName')
+  const owner = repo[0]
+  const name = repo[1]
+  const tagName = core.getInput('tag-name')
   console.log(owner, name, tagName)
   const html = note(octkit, owner, name, tagName)
   core.setOutput('labels', html)

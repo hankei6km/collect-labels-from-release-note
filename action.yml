@@ -1,0 +1,21 @@
+name: 'Collect labels from release note'
+description: 'Collect labels from release note'
+inputs:
+  token:
+    description: 'GITHUB_TOKEN'
+    required: true
+    default: ''
+  repository:
+    description: 'Repository name(owner/name)'
+    required: true
+    default: ''
+  tag-name:
+    description: 'tagName'
+    required: true
+    default: ''
+outputs:
+  labels:
+    description: 'Labels from release note'
+runs:
+  using: 'node16'
+  main: 'dist/index.js'

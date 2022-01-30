@@ -52,6 +52,18 @@ jobs:
         env:
           CONTAIN: ${{ contains(toJson(steps.collect.outputs.labels), 'testing') }}
 
+      - name: Collect(drop input)
+        id: collect_drop_input
+        continue-on-error: true
+        uses: hankei6km/collect-labels-from-release-note@v0.1.16
+        with:
+          token: ${{ secrets.GITHUB_TOKEN}}
+          tag_name: v0.5.0
+      - name: Check failure
+        run: test "${FAILURE}" = "failure"
+        env:
+          FAILURE: ${{ steps.collect_drop_input.outcome }}
+
       - name: Collect(not exist)
         id: collect_not_exist
         continue-on-error: true

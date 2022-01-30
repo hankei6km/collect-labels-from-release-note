@@ -8267,6 +8267,78 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 6144:
+/***/ ((module, __unused_webpack___webpack_exports__, __nccwpck_require__) => {
+
+__nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__) => {
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(2186);
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(_actions_core__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _actions_github__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(5438);
+/* harmony import */ var _actions_github__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(_actions_github__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _util__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(2629);
+
+
+
+try {
+    const octkit = _actions_github__WEBPACK_IMPORTED_MODULE_1__.getOctokit(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('token'));
+    const repository = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('repository');
+    const repo = repository.split('/', 2);
+    if (repo.length !== 2) {
+        throw new Error(`repository: the input is invalid : ${repository}`);
+    }
+    const owner = repo[0];
+    const name = repo[1];
+    const tagName = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('tag-name');
+    console.log(owner, name, tagName);
+    const html = await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .note */ .J)(octkit, owner, name, tagName);
+    console.log(html);
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('labels', html);
+}
+catch (err) {
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed(err.message);
+}
+
+__webpack_handle_async_dependencies__();
+}, 1);
+
+/***/ }),
+
+/***/ 2629:
+/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   "J": () => (/* binding */ note)
+/* harmony export */ });
+/* unused harmony export labels */
+async function note(octokit, owner, name, tagName) {
+    return await octokit.graphql(`
+query ($owner: String!, $name: String!, $tagName: String!) {
+  repository(owner:$owner, name:$name) {
+    release(tagName:$tagName){
+      descriptionHTML
+    }
+  }
+}
+`, { owner, name, tagName });
+}
+async function labels(octokit, owner, repo, pr) {
+    const { data: pullRequest } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pr,
+        mediaType: {
+            format: 'json'
+        }
+    });
+    return pullRequest.labels
+        .map(({ name }) => name)
+        .filter((value) => typeof value === 'string') // string のみ.
+        .filter((value) => value); // '' 以外.
+}
+
+
+/***/ }),
+
 /***/ 2877:
 /***/ ((module) => {
 
@@ -8413,68 +8485,118 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/async module */
+/******/ (() => {
+/******/ 	var webpackThen = typeof Symbol === "function" ? Symbol("webpack then") : "__webpack_then__";
+/******/ 	var webpackExports = typeof Symbol === "function" ? Symbol("webpack exports") : "__webpack_exports__";
+/******/ 	var completeQueue = (queue) => {
+/******/ 		if(queue) {
+/******/ 			queue.forEach((fn) => (fn.r--));
+/******/ 			queue.forEach((fn) => (fn.r-- ? fn.r++ : fn()));
+/******/ 		}
+/******/ 	}
+/******/ 	var completeFunction = (fn) => (!--fn.r && fn());
+/******/ 	var queueFunction = (queue, fn) => (queue ? queue.push(fn) : completeFunction(fn));
+/******/ 	var wrapDeps = (deps) => (deps.map((dep) => {
+/******/ 		if(dep !== null && typeof dep === "object") {
+/******/ 			if(dep[webpackThen]) return dep;
+/******/ 			if(dep.then) {
+/******/ 				var queue = [];
+/******/ 				dep.then((r) => {
+/******/ 					obj[webpackExports] = r;
+/******/ 					completeQueue(queue);
+/******/ 					queue = 0;
+/******/ 				});
+/******/ 				var obj = {};
+/******/ 											obj[webpackThen] = (fn, reject) => (queueFunction(queue, fn), dep['catch'](reject));
+/******/ 				return obj;
+/******/ 			}
+/******/ 		}
+/******/ 		var ret = {};
+/******/ 							ret[webpackThen] = (fn) => (completeFunction(fn));
+/******/ 							ret[webpackExports] = dep;
+/******/ 							return ret;
+/******/ 	}));
+/******/ 	__nccwpck_require__.a = (module, body, hasAwait) => {
+/******/ 		var queue = hasAwait && [];
+/******/ 		var exports = module.exports;
+/******/ 		var currentDeps;
+/******/ 		var outerResolve;
+/******/ 		var reject;
+/******/ 		var isEvaluating = true;
+/******/ 		var nested = false;
+/******/ 		var whenAll = (deps, onResolve, onReject) => {
+/******/ 			if (nested) return;
+/******/ 			nested = true;
+/******/ 			onResolve.r += deps.length;
+/******/ 			deps.map((dep, i) => (dep[webpackThen](onResolve, onReject)));
+/******/ 			nested = false;
+/******/ 		};
+/******/ 		var promise = new Promise((resolve, rej) => {
+/******/ 			reject = rej;
+/******/ 			outerResolve = () => (resolve(exports), completeQueue(queue), queue = 0);
+/******/ 		});
+/******/ 		promise[webpackExports] = exports;
+/******/ 		promise[webpackThen] = (fn, rejectFn) => {
+/******/ 			if (isEvaluating) { return completeFunction(fn); }
+/******/ 			if (currentDeps) whenAll(currentDeps, fn, rejectFn);
+/******/ 			queueFunction(queue, fn);
+/******/ 			promise['catch'](rejectFn);
+/******/ 		};
+/******/ 		module.exports = promise;
+/******/ 		body((deps) => {
+/******/ 			if(!deps) return outerResolve();
+/******/ 			currentDeps = wrapDeps(deps);
+/******/ 			var fn, result;
+/******/ 			var promise = new Promise((resolve, reject) => {
+/******/ 				fn = () => (resolve(result = currentDeps.map((d) => (d[webpackExports]))));
+/******/ 				fn.r = 0;
+/******/ 				whenAll(currentDeps, fn, reject);
+/******/ 			});
+/******/ 			return fn.r ? promise : result;
+/******/ 		}).then(outerResolve, reject);
+/******/ 		isEvaluating = false;
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/compat get default export */
+/******/ (() => {
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__nccwpck_require__.n = (module) => {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			() => (module['default']) :
+/******/ 			() => (module);
+/******/ 		__nccwpck_require__.d(getter, { a: getter });
+/******/ 		return getter;
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
 /******/ 
 /************************************************************************/
-var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
-(() => {
-
-// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
-var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var github = __nccwpck_require__(5438);
-;// CONCATENATED MODULE: ./src/util.ts
-async function note(octokit, owner, name, tagName) {
-    return await octokit.graphql(`
-query ($owner: String!, $name: String!, $tagName: String!) {
-  repository(owner:$owner, name:$name) {
-    release(tagName:$tagName){
-      descriptionHTML
-    }
-  }
-}
-`, { owner, name, tagName });
-}
-async function labels(octokit, owner, repo, pr) {
-    const { data: pullRequest } = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: pr,
-        mediaType: {
-            format: 'json'
-        }
-    });
-    return pullRequest.labels
-        .map(({ name }) => name)
-        .filter((value) => typeof value === 'string') // string のみ.
-        .filter((value) => value); // '' 以外.
-}
-
-;// CONCATENATED MODULE: ./src/index.ts
-
-
-
-try {
-    const octkit = github.getOctokit(core.getInput('token'));
-    const repository = core.getInput('repository');
-    const repo = repository.split('/', 2);
-    if (repo.length !== 2) {
-        throw new Error(`repository: the input is invalid : ${repository}`);
-    }
-    const owner = repo[0];
-    const name = repo[1];
-    const tagName = core.getInput('tag-name');
-    console.log(owner, name, tagName);
-    const html = note(octkit, owner, name, tagName);
-    console.log(html);
-    core.setOutput('labels', html);
-}
-catch (err) {
-    core.setFailed(err.message);
-}
-
-})();
-
+/******/ 
+/******/ // startup
+/******/ // Load entry module and return exports
+/******/ // This entry module used 'module' so it can't be inlined
+/******/ var __webpack_exports__ = __nccwpck_require__(6144);
+/******/ __webpack_exports__ = await __webpack_exports__;
+/******/ 

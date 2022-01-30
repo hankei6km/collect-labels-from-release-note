@@ -27,7 +27,7 @@ query ($owner: String!, $name: String!, $tagName: String!) {
   if (repository && repository.release && repository.release.descriptionHTML) {
     return repository.release.descriptionHTML
   }
-  throw new Error('note: "descriptionHTML" is not include in response')
+  throw new Error('note: "descriptionHTML" is not included in response')
 }
 
 function isElement(node: Node): node is Element {

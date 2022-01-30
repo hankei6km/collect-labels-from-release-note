@@ -1,18 +1,21 @@
+import { getOctokit } from '@actions/github'
 import { jest } from '@jest/globals'
 import { note, pulls } from '../src/util'
 
 describe('noe()', () => {
   it('should return descriptionHTML', async () => {
     const octokit = {
-      graphql: jest.fn().mockReturnValue({
-        repository: {
-          release: {
-            descriptionHTML: 'html'
+      graphql: jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          repository: {
+            release: {
+              descriptionHTML: 'html'
+            }
           }
-        }
-      })
+        })
+      )
     }
-    expect(
+    await expect(
       note(octokit as any, 'test-owner', 'test-name', 'v0.1.1')
     ).resolves.toEqual('html')
     expect(octokit.graphql).toHaveBeenCalledWith(
@@ -30,15 +33,17 @@ query ($owner: String!, $name: String!, $tagName: String!) {
   })
   it('should throw error when descriptionHTML is not included', async () => {
     const octokit = {
-      graphql: jest.fn().mockReturnValue({
-        repository: {
-          release: {}
-        }
-      })
+      graphql: jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          repository: {
+            release: {}
+          }
+        })
+      )
     }
-    expect(
+    await expect(
       note(octokit as any, 'test-owner', 'test-name', 'v0.1.1')
-    ).rejects.toThrowError('not included')
+    ).rejects.toThrowError(/not included/)
   })
 })
 

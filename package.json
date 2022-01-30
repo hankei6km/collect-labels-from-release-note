@@ -1,6 +1,6 @@
 {
   "name": "@hankei6km/collect-labels-from-release-note",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "GitHub Action to collect labels from release note",
   "author": "hankei6km <hankei6km@gmail.com> (https://github.com/hankei6km)",
   "license": "MIT",

@@ -9,7 +9,7 @@ jobs:
         id: collect
         uses: hankei6km/collect-labels-from-release-note@v0.1.4
         with:
-          token: ${{ secret.GITHUB_TOKEN}}
+          token: ${{ secrets.GITHUB_TOKEN}}
           repository: hankei6km/gas-md2html
           tag-name: v0.5.0
       - name: Print

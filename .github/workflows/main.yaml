@@ -30,6 +30,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN}}
           repository: hankei6km/gas-md2html
           tag_name: dummy
+      - name: Check failure
+        run: echo "${{ failure() }}"
+        env:
+          LABELS: ${{ toJSON(steps.collect_not_exist) }}
       - name: Print(not exist)
         run: echo "${LABELS}"
         env:

@@ -1,5 +1,10 @@
 import * as github from '@actions/github'
 import { Repository } from '@octokit/graphql-schema'
+import parse5 from 'parse5'
+import { fromParse5 } from 'hast-util-from-parse5'
+import { Node } from 'unist'
+import { Element } from 'hast'
+import { visit } from 'unist-util-visit'
 
 type NoteInRes = {
   repository: {
@@ -40,6 +45,32 @@ query ($owner: String!, $name: String!, $tagName: String!) {
     return repository.release.descriptionHTML
   }
   throw new Error('note: "descriptionHTML" is not include in response')
+}
+
+function isElement(node: Node): node is Element {
+  return node.type === 'element'
+}
+
+export function pulls(html: string, owner: string, name: string): number[] {
+  const ret = new Set<number>([])
+  const p5ast = parse5.parseFragment(String(html), {
+    sourceCodeLocationInfo: true
+  })
+  const n: Node = fromParse5(p5ast)
+  visit(n, (node: Node) => {
+    // visitTest にはわけない,
+    if (
+      isElement(node) &&
+      node.tagName === 'a' &&
+      typeof node.properties?.href === 'string'
+    ) {
+      const a = node.properties.href.split('/')
+      if (a[3] === owner && a[4] === name && a[6].match(/[0-9]+/)) {
+        ret.add(Number.parseInt(a[6], 10))
+      }
+    }
+  })
+  return [...ret]
 }
 
 export async function labels(

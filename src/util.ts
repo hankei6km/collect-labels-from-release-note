@@ -51,6 +51,7 @@ function isElement(node: Node): node is Element {
   return node.type === 'element'
 }
 
+const pullsNumRegExp = /^[0-9]+$/
 export function pulls(html: string, owner: string, name: string): number[] {
   const ret = new Set<number>([])
   const p5ast = parse5.parseFragment(String(html), {
@@ -65,7 +66,7 @@ export function pulls(html: string, owner: string, name: string): number[] {
       typeof node.properties?.href === 'string'
     ) {
       const a = node.properties.href.split('/')
-      if (a[3] === owner && a[4] === name && a[6].match(/[0-9]+/)) {
+      if (a[3] === owner && a[4] === name && a[6].match(pullsNumRegExp)) {
         ret.add(Number.parseInt(a[6], 10))
       }
     }

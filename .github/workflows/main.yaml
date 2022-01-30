@@ -22,3 +22,14 @@ jobs:
         run: echo "${{ contains(toJson(steps.collect.outputs.labels), 'ing","tes') }}"
       - name: Contains as array(true)
         run: echo "${{ contains(toJson(steps.collect.outputs.labels), 'testing') }}"
+      - name: Collect(not exist)
+        id: collect_not_exist
+        uses: hankei6km/collect-labels-from-release-note@v0.1.16
+        with:
+          token: ${{ secrets.GITHUB_TOKEN}}
+          repository: hankei6km/gas-md2html
+          tag_name: dummy
+      - name: Print(not exist)
+        run: echo "${LABELS}"
+        env:
+          LABELS: ${{ steps.collect_not_exist.outputs.labels }}

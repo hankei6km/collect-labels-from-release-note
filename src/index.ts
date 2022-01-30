@@ -5,13 +5,16 @@ import { labels, note, pulls } from './util'
 try {
   const octkit = github.getOctokit(core.getInput('token'))
   const repository = core.getInput('repository')
-  const repo = repository.split('/', 2)
+  const repo = repository.split('/')
   if (repo.length !== 2) {
     throw new Error(`repository: the input is invalid : ${repository}`)
   }
   const owner = repo[0]
   const name = repo[1]
-  const tagName = core.getInput('tag-name')
+  const tagName = core.getInput('tag_name')
+  if (!tagName) {
+    throw new Error(`tag_name: the input is blank`)
+  }
   const l = await labels(
     octkit,
     owner,

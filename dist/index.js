@@ -16383,16 +16383,17 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__) => {
 try {
     const octkit = _actions_github__WEBPACK_IMPORTED_MODULE_1__.getOctokit(_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('token'));
     const repository = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('repository');
-    const repo = repository.split('/', 2);
+    const repo = repository.split('/');
     if (repo.length !== 2) {
         throw new Error(`repository: the input is invalid : ${repository}`);
     }
     const owner = repo[0];
     const name = repo[1];
-    const tagName = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('tag-name');
-    console.log(owner, name, tagName);
+    const tagName = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('tag_name');
+    if (!tagName) {
+        throw new Error(`tag_name: the input is blank`);
+    }
     const l = await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .labels */ .p8)(octkit, owner, name, (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .pulls */ .UL)(await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .note */ .JP)(octkit, owner, name, tagName), owner, name));
-    console.log(l);
     _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('labels', JSON.stringify(l));
 }
 catch (err) {

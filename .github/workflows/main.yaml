@@ -18,3 +18,7 @@ jobs:
           LABELS: ${{ steps.collect.outputs.labels }}
       - name: Contains as string
         run: echo "${{ contains(steps.collect.outputs.labels, 'test') }}"
+      - name: Contains as array(false)
+        run: echo "${{ contains(toJson(steps.collect.outputs.labels), 'test') }}"
+      - name: Contains as array(true)
+        run: echo "${{ contains(toJson(steps.collect.outputs.labels), 'testing') }}"

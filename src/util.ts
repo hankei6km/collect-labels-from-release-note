@@ -66,6 +66,7 @@ export function pulls(html: string, owner: string, name: string): number[] {
     ) {
       const a = node.properties.href.split('/')
       if (a[3] === owner && a[4] === name && a[6].match(/[0-9]+/)) {
+        console.log(a)
         ret.add(Number.parseInt(a[6], 10))
       }
     }

@@ -59,7 +59,6 @@ describe('index', () => {
         resolve([stdout.toString(), stderr.toString()])
       })
     })
-    console.log(stdout)
     expect(stdout).toMatch(
       /\:\:error\:\:repository\: the input is invalid \: test-owner\/name\/foo/
     )

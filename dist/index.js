@@ -16391,9 +16391,9 @@ try {
     const name = repo[1];
     const tagName = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('tag-name');
     console.log(owner, name, tagName);
-    const pr = (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .pulls */ .UL)(await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .note */ .JP)(octkit, owner, name, tagName), owner, name);
-    console.log(pr);
-    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('labels', JSON.stringify(pr));
+    const l = (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .labels */ .p8)(octkit, owner, name, (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .pulls */ .UL)(await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .note */ .JP)(octkit, owner, name, tagName), owner, name));
+    console.log(l);
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('labels', JSON.stringify(l));
 }
 catch (err) {
     _actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed(err.message);
@@ -16410,11 +16410,10 @@ __webpack_handle_async_dependencies__();
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
+  "p8": () => (/* binding */ labels),
   "JP": () => (/* binding */ note),
   "UL": () => (/* binding */ pulls)
 });
-
-// UNUSED EXPORTS: labels
 
 // NAMESPACE OBJECT: ./node_modules/property-information/lib/util/types.js
 var types_namespaceObject = {};

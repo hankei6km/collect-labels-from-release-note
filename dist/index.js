@@ -8413,35 +8413,6 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ }
 /******/ 
 /************************************************************************/
-/******/ /* webpack/runtime/compat get default export */
-/******/ (() => {
-/******/ 	// getDefaultExport function for compatibility with non-harmony modules
-/******/ 	__nccwpck_require__.n = (module) => {
-/******/ 		var getter = module && module.__esModule ?
-/******/ 			() => (module['default']) :
-/******/ 			() => (module);
-/******/ 		__nccwpck_require__.d(getter, { a: getter });
-/******/ 		return getter;
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/define property getters */
-/******/ (() => {
-/******/ 	// define getter functions for harmony exports
-/******/ 	__nccwpck_require__.d = (exports, definition) => {
-/******/ 		for(var key in definition) {
-/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
-/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 			}
-/******/ 		}
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/hasOwnProperty shorthand */
-/******/ (() => {
-/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ })();
-/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -8450,24 +8421,58 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(2186);
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(_actions_core__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _actions_github__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(5438);
-/* harmony import */ var _actions_github__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(_actions_github__WEBPACK_IMPORTED_MODULE_1__);
+
+// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
+var core = __nccwpck_require__(2186);
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
+var github = __nccwpck_require__(5438);
+;// CONCATENATED MODULE: ./src/util.ts
+async function note(octokit, owner, name, tagName) {
+    return await octokit.graphql(`
+query ($owner: String!, $name: String!, $tagName: String!) {
+  repository(owner:$owner, name:$name) {
+    release(tagName:$tagName){
+      descriptionHTML
+    }
+  }
+}
+`, { owner, name, tagName });
+}
+async function labels(octokit, owner, repo, pr) {
+    const { data: pullRequest } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pr,
+        mediaType: {
+            format: 'json'
+        }
+    });
+    return pullRequest.labels
+        .map(({ name }) => name)
+        .filter((value) => typeof value === 'string') // string のみ.
+        .filter((value) => value); // '' 以外.
+}
+
+;// CONCATENATED MODULE: ./src/index.ts
+
 
 
 try {
-    // `who-to-greet` input defined in action metadata file
-    const nameToGreet = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('who-to-greet');
-    console.log(`Hello ${nameToGreet}!`);
-    const time = new Date().toTimeString();
-    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('time', time);
-    // Get the JSON webhook payload for the event that triggered the workflow
-    const payload = JSON.stringify(_actions_github__WEBPACK_IMPORTED_MODULE_1__.context.payload, undefined, 2);
-    console.log(`The event payload: ${payload}`);
+    const octkit = github.getOctokit(core.getInput('token'));
+    const repository = core.getInput('repository');
+    const repo = repository.split('/', 2);
+    if (repo.length !== 2) {
+        throw new Error(`repository: the input is invalid : ${repository}`);
+    }
+    const owner = repository[0];
+    const name = repository[1];
+    const tagName = core.getInput('tagName');
+    console.log(owner, name, tagName);
+    const html = note(octkit, owner, name, tagName);
+    core.setOutput('labels', html);
 }
-catch (error) {
-    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed(error.message);
+catch (err) {
+    core.setFailed(err.message);
 }
 
 })();

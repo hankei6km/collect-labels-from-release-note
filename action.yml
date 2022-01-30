@@ -1,13 +1,21 @@
 name: 'Collect labels from release note'
 description: 'Collect labels from release note'
 inputs:
-  who-to-greet: # id of input
-    description: 'Who to greet'
+  token:
+    description: 'GITHUB_TOKEN'
     required: true
-    default: 'World'
+    default: ''
+  repository:
+    description: 'Repository name(owner/name)'
+    required: true
+    default: ''
+  tag-name:
+    description: 'tagName'
+    required: true
+    default: ''
 outputs:
-  time: # id of output
-    description: 'The time we greeted you'
+  labels:
+    description: 'Labels from release note'
 runs:
   using: 'node16'
   main: 'dist/index.js'

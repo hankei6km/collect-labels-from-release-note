@@ -30,7 +30,8 @@ afterAll(() => {
 describe('index', () => {
   const __dirname = path.dirname(fileURLToPath(import.meta.url))
   const ip = path.join(__dirname, '..', 'dist', 'index.js')
-  it('should print error message(reopsitory = undefined)', async () => {
+  it('should print error message(reopsitory = blank)', async () => {
+    process.env['INPUT_REPOSITORY'] = ''
     const [stdout, stderr] = await new Promise((resolve) => {
       cp.exec(`node ${ip}`, { env: process.env }, (_err, stdout, stderr) => {
         resolve([stdout.toString(), stderr.toString()])

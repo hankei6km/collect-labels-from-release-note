@@ -16391,7 +16391,7 @@ try {
     const name = repo[1];
     const tagName = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('tag-name');
     console.log(owner, name, tagName);
-    const l = (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .labels */ .p8)(octkit, owner, name, (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .pulls */ .UL)(await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .note */ .JP)(octkit, owner, name, tagName), owner, name));
+    const l = await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .labels */ .p8)(octkit, owner, name, (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .pulls */ .UL)(await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .note */ .JP)(octkit, owner, name, tagName), owner, name));
     console.log(l);
     _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('labels', JSON.stringify(l));
 }

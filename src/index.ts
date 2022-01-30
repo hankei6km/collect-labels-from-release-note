@@ -13,7 +13,7 @@ try {
   const name = repo[1]
   const tagName = core.getInput('tag-name')
   console.log(owner, name, tagName)
-  const l = labels(
+  const l = await labels(
     octkit,
     owner,
     name,

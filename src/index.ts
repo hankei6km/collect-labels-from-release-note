@@ -5,7 +5,7 @@ import { labels, note, pulls } from './util'
 try {
   const octkit = github.getOctokit(core.getInput('token'))
   const repository = core.getInput('repository')
-  const repo = repository.split('/', 2)
+  const repo = repository.split('/')
   if (repo.length !== 2) {
     throw new Error(`repository: the input is invalid : ${repository}`)
   }

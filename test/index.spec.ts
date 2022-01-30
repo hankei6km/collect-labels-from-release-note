@@ -52,14 +52,16 @@ describe('index', () => {
     expect(stderr).toEqual('')
   })
   it('should print error message(reopsitory = owner/name/foo)', async () => {
+    process.env['INPUT_TOKEN'] = 'aaa'
     process.env['INPUT_REPOSITORY'] = 'test-owner/name/foo'
     const [stdout, stderr] = await new Promise((resolve) => {
       cp.exec(`node ${ip}`, { env: process.env }, (_err, stdout, stderr) => {
         resolve([stdout.toString(), stderr.toString()])
       })
     })
+    console.log(stdout)
     expect(stdout).toMatch(
-      /\:\:error\:\:repository\: the input is invalid \: test-owner\/test-name\/foo/
+      /\:\:error\:\:repository\: the input is invalid \: test-owner\/name\/foo/
     )
     expect(stderr).toEqual('')
   })

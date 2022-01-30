@@ -61,18 +61,28 @@ export async function labels(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
-  pr: number
+  prs: number[]
 ): Promise<string[]> {
-  const { data: pullRequest } = await octokit.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: pr,
-    mediaType: {
-      format: 'json'
-    }
-  })
-  return pullRequest.labels
-    .map(({ name }) => name)
-    .filter((value): value is string => typeof value === 'string') // string のみ.
-    .filter((value) => value) // '' 以外.
+  let ret: string[] = []
+  for (let pr of prs) {
+    const { data: pullRequest } = await octokit.rest.pulls
+      .get({
+        owner,
+        repo,
+        pull_number: pr,
+        mediaType: {
+          format: 'json'
+        }
+      })
+      .catch((err) => {
+        throw new Error('labels: error occuered in call api')
+      })
+    ret = ret.concat(
+      ...pullRequest.labels
+        .map(({ name }) => name)
+        .filter((value): value is string => typeof value === 'string') // string のみ.
+        .filter((value) => value) // '' 以外.
+    )
+  }
+  return [...new Set<string>(ret)]
 }

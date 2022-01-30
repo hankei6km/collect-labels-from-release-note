@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import { note, pulls } from './util'
+import { labels, note, pulls } from './util'
 
 try {
   const octkit = github.getOctokit(core.getInput('token'))
@@ -13,9 +13,14 @@ try {
   const name = repo[1]
   const tagName = core.getInput('tag-name')
   console.log(owner, name, tagName)
-  const pr = pulls(await note(octkit, owner, name, tagName), owner, name)
-  console.log(pr)
-  core.setOutput('labels', JSON.stringify(pr))
+  const l = await labels(
+    octkit,
+    owner,
+    name,
+    pulls(await note(octkit, owner, name, tagName), owner, name)
+  )
+  console.log(l)
+  core.setOutput('labels', JSON.stringify(l))
 } catch (err: any) {
   core.setFailed(err.message)
 }

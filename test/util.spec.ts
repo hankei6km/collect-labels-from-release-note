@@ -1,6 +1,5 @@
-import { getOctokit } from '@actions/github'
 import { jest } from '@jest/globals'
-import { note, pulls } from '../src/util'
+import { labels, note, pulls } from '../src/util'
 
 describe('noe()', () => {
   it('should return descriptionHTML', async () => {
@@ -112,5 +111,88 @@ describe('pulls()', () => {
         'gas-md2html'
       )
     ).toEqual([1, 2])
+  })
+})
+
+describe('labels()', () => {
+  const genOctokit = (mockData: Promise<any>[]) => {
+    const g = function* () {
+      for (let m of mockData) {
+        yield m
+      }
+    }
+    const i = g()
+    return {
+      rest: {
+        pulls: {
+          get: jest.fn().mockImplementation(() => i.next().value)
+        }
+      }
+    }
+  }
+  it('should return labels', async () => {
+    const octokit = genOctokit([
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'abc' }, { name: 'efg' }]
+        }
+      }),
+      Promise.resolve({
+        data: {
+          labels: [{ name: '123' }, { name: '456' }]
+        }
+      })
+    ])
+    await expect(
+      labels(octokit as any, 'test-user', 'test-name', [1, 2])
+    ).resolves.toEqual(['abc', 'efg', '123', '456'])
+    expect(octokit.rest.pulls.get.mock.calls).toEqual([
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 1,
+          repo: 'test-name'
+        }
+      ],
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 2,
+          repo: 'test-name'
+        }
+      ]
+    ])
+  })
+  it('should remove duplicate', async () => {
+    const octokit = genOctokit([
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'abc' }, { name: 'efg' }]
+        }
+      }),
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'abc' }, { name: '456' }]
+        }
+      })
+    ])
+    await expect(
+      labels(octokit as any, 'test-user', 'test-name', [1, 2])
+    ).resolves.toEqual(['abc', 'efg', '456'])
+  })
+  it('should throw error', async () => {
+    const octokit = genOctokit([
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'abc' }, { name: 'efg' }]
+        }
+      }),
+      Promise.reject('error')
+    ])
+    await expect(
+      labels(octokit as any, 'test-user', 'test-name', [1, 2])
+    ).rejects.toThrowError(/occuered/)
   })
 })

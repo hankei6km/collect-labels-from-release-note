@@ -8290,7 +8290,7 @@ try {
     const name = repo[1];
     const tagName = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('tag-name');
     console.log(owner, name, tagName);
-    const html = await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .note */ .J)(octkit, owner, name, tagName);
+    const html = await (0,_util__WEBPACK_IMPORTED_MODULE_2__/* .note */ .JP)(octkit, owner, name, tagName);
     console.log(html);
     _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('labels', html);
 }
@@ -8307,11 +8307,19 @@ __webpack_handle_async_dependencies__();
 /***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
 
 /* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   "J": () => (/* binding */ note)
+/* harmony export */   "JP": () => (/* binding */ note)
 /* harmony export */ });
-/* unused harmony export labels */
+/* unused harmony exports noteInRes, labels */
+function noteInRes(res) {
+    if (res instanceof Object && res.hasOwnProperty('repository')) {
+        const repository = res.repository;
+        if (repository instanceof Object && repository.hasOwnProperty('release')) {
+        }
+    }
+    return false;
+}
 async function note(octokit, owner, name, tagName) {
-    return await octokit.graphql(`
+    const { repository } = await octokit.graphql(`
 query ($owner: String!, $name: String!, $tagName: String!) {
   repository(owner:$owner, name:$name) {
     release(tagName:$tagName){
@@ -8320,6 +8328,10 @@ query ($owner: String!, $name: String!, $tagName: String!) {
   }
 }
 `, { owner, name, tagName });
+    if (repository && repository.release && repository.release.descriptionHTML) {
+        return repository.release.descriptionHTML;
+    }
+    throw new Error('note: "descriptionHTML" is not include in response');
 }
 async function labels(octokit, owner, repo, pr) {
     const { data: pullRequest } = await octokit.rest.pulls.get({

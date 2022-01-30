@@ -19198,6 +19198,7 @@ query ($owner: String!, $name: String!, $tagName: String!) {
 function isElement(node) {
     return node.type === 'element';
 }
+const pullsNumRegExp = /^[0-9]+$/;
 function pulls(html, owner, name) {
     const ret = new Set([]);
     const p5ast = lib.parseFragment(String(html), {
@@ -19210,7 +19211,7 @@ function pulls(html, owner, name) {
             node.tagName === 'a' &&
             typeof node.properties?.href === 'string') {
             const a = node.properties.href.split('/');
-            if (a[3] === owner && a[4] === name && a[6].match(/[0-9]+/)) {
+            if (a[3] === owner && a[4] === name && a[6].match(pullsNumRegExp)) {
                 ret.add(Number.parseInt(a[6], 10));
             }
         }

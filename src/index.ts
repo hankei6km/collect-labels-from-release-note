@@ -14,6 +14,7 @@ try {
   const tagName = core.getInput('tag-name')
   console.log(owner, name, tagName)
   const html = note(octkit, owner, name, tagName)
+  console.log(html)
   core.setOutput('labels', html)
 } catch (err: any) {
   core.setFailed(err.message)

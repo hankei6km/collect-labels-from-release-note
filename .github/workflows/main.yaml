@@ -33,4 +33,4 @@ jobs:
       - name: Print(not exist)
         run: echo "${LABELS}"
         env:
-          LABELS: ${{ toJSON(steps.collect_not_exist.outputs.*) }}
+          LABELS: ${{ toJSON(steps.collect_not_exist) }}

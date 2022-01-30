@@ -24,7 +24,7 @@ jobs:
         run: echo "${{ contains(toJson(steps.collect.outputs.labels), 'testing') }}"
       - name: Collect(not exist)
         id: collect_not_exist
-        continue-on-error: true
+        # continue-on-error: true
         uses: hankei6km/collect-labels-from-release-note@v0.1.16
         with:
           token: ${{ secrets.GITHUB_TOKEN}}

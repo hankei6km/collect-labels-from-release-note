@@ -13,4 +13,6 @@ jobs:
           repository: hankei6km/gas-md2html
           tag-name: v0.5.0
       - name: Print
-        run: echo "${{ steps.collect.outputs.labels }}"
+        run: echo "${LABELS}"
+        env:
+          LABELS: ${{ steps.collect.outputs.labels }}

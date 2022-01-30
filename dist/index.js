@@ -16414,7 +16414,7 @@ __nccwpck_require__.d(__webpack_exports__, {
   "UL": () => (/* binding */ pulls)
 });
 
-// UNUSED EXPORTS: labels, noteInRes
+// UNUSED EXPORTS: labels
 
 // NAMESPACE OBJECT: ./node_modules/property-information/lib/util/types.js
 var types_namespaceObject = {};
@@ -19172,14 +19172,6 @@ const visit =
 
 
 
-function noteInRes(res) {
-    if (res instanceof Object && res.hasOwnProperty('repository')) {
-        const repository = res.repository;
-        if (repository instanceof Object && repository.hasOwnProperty('release')) {
-        }
-    }
-    return false;
-}
 async function note(octokit, owner, name, tagName) {
     const { repository } = await octokit.graphql(`
 query ($owner: String!, $name: String!, $tagName: String!) {
@@ -19193,7 +19185,7 @@ query ($owner: String!, $name: String!, $tagName: String!) {
     if (repository && repository.release && repository.release.descriptionHTML) {
         return repository.release.descriptionHTML;
     }
-    throw new Error('note: "descriptionHTML" is not include in response');
+    throw new Error('note: "descriptionHTML" is not included in response');
 }
 function isElement(node) {
     return node.type === 'element';
@@ -19218,19 +19210,28 @@ function pulls(html, owner, name) {
     });
     return [...ret];
 }
-async function labels(octokit, owner, repo, pr) {
-    const { data: pullRequest } = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: pr,
-        mediaType: {
-            format: 'json'
-        }
-    });
-    return pullRequest.labels
-        .map(({ name }) => name)
-        .filter((value) => typeof value === 'string') // string のみ.
-        .filter((value) => value); // '' 以外.
+async function labels(octokit, owner, repo, prs) {
+    let ret = [];
+    for (let pr of prs) {
+        const { data: pullRequest } = await octokit.rest.pulls
+            .get({
+            owner,
+            repo,
+            pull_number: pr,
+            mediaType: {
+                format: 'json'
+            }
+        })
+            .catch((err) => {
+            throw new Error('labels: error occuered in call api');
+        });
+        ret = ret.concat(...pullRequest.labels
+            .map(({ name }) => name)
+            .filter((value) => typeof value === 'string') // string のみ.
+            .filter((value) => value) // '' 以外.
+        );
+    }
+    return [...new Set(ret)];
 }
 
 

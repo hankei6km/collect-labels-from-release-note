@@ -1,4 +1,22 @@
 import * as github from '@actions/github'
+import { Repository } from '@octokit/graphql-schema'
+
+type NoteInRes = {
+  repository: {
+    release: {
+      descriptionHTML: string
+    }
+  }
+}
+
+export function noteInRes(res: unknown): res is NoteInRes {
+  if (res instanceof Object && res.hasOwnProperty('repository')) {
+    const repository = (res as { repository: unknown }).repository
+    if (repository instanceof Object && repository.hasOwnProperty('release')) {
+    }
+  }
+  return false
+}
 
 export async function note(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -6,7 +24,7 @@ export async function note(
   name: string,
   tagName: string
 ): Promise<string> {
-  return await octokit.graphql(
+  const { repository } = await octokit.graphql<{ repository: Repository }>(
     `
 query ($owner: String!, $name: String!, $tagName: String!) {
   repository(owner:$owner, name:$name) {
@@ -18,6 +36,10 @@ query ($owner: String!, $name: String!, $tagName: String!) {
 `,
     { owner, name, tagName }
   )
+  if (repository && repository.release && repository.release.descriptionHTML) {
+    return repository.release.descriptionHTML
+  }
+  throw new Error('note: "descriptionHTML" is not include in response')
 }
 
 export async function labels(

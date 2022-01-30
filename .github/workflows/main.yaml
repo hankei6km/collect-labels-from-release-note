@@ -7,7 +7,7 @@ jobs:
     steps:
       - name: Collect
         id: collect
-        uses: hankei6km/collect-labels-from-release-note@v0.1.8
+        uses: hankei6km/collect-labels-from-release-note@v0.1.9
         with:
           token: ${{ secrets.GITHUB_TOKEN}}
           repository: hankei6km/gas-md2html

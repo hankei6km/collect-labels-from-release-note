@@ -12,6 +12,9 @@ try {
   const owner = repo[0]
   const name = repo[1]
   const tagName = core.getInput('tag_name')
+  if (!tagName) {
+    throw new Error(`tag_name: the input is blank`)
+  }
   const l = await labels(
     octkit,
     owner,

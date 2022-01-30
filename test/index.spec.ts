@@ -12,19 +12,19 @@ import * as path from 'path'
 //afterAll(() => (process.env = { ...saveEnv }))
 
 const saveInputs = {
-  token: process.env.INPUT_TOKEN,
-  repository: process.env.INPUT_REPOSITORY,
-  tagName: process.env['INPUT_TAG-NAME']
+  token: process.env['INPUT_TOKEN'],
+  repository: process.env['INPUT_REPOSITORY'],
+  tagName: process.env['INPUT_TAG_NAME']
 }
 beforeEach(() => {
-  process.env.INPUT_TOKEN = saveInputs.token
-  process.env.INPUT_REPOSITORY = saveInputs.repository
-  process.env['INPUT_TAG-NAME'] = saveInputs.tagName
+  process.env['INPUT_TOKEN'] = saveInputs.token
+  process.env['INPUT_REPOSITORY'] = saveInputs.repository
+  process.env['INPUT_TAG_NAME'] = saveInputs.tagName
 })
 afterAll(() => {
-  process.env.INPUT_TOKEN = saveInputs.token
-  process.env.INPUT_REPOSITORY = saveInputs.repository
-  process.env['INPUT_TAG-NAME'] = saveInputs.tagName
+  process.env['INPUT_TOKEN'] = saveInputs.token
+  process.env['INPUT_REPOSITORY'] = saveInputs.repository
+  process.env['INPUT_TAG_NAME'] = saveInputs.tagName
 })
 
 describe('index', () => {
@@ -62,6 +62,18 @@ describe('index', () => {
     expect(stdout).toMatch(
       /\:\:error\:\:repository\: the input is invalid \: test-owner\/name\/foo/
     )
+    expect(stderr).toEqual('')
+  })
+  it('should print error message(tag_name = "")', async () => {
+    process.env['INPUT_TOKEN'] = 'aaa'
+    process.env['INPUT_REPOSITORY'] = 'test-owner/name'
+    process.env['INPUT_TAG_NAME'] = ''
+    const [stdout, stderr] = await new Promise((resolve) => {
+      cp.exec(`node ${ip}`, { env: process.env }, (_err, stdout, stderr) => {
+        resolve([stdout.toString(), stderr.toString()])
+      })
+    })
+    expect(stdout).toMatch(/\:\:error\:\:tag_name\: the input is blank/)
     expect(stderr).toEqual('')
   })
 })

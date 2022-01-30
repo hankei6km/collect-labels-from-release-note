@@ -8,6 +8,7 @@ inputs:
   repository:
     description: 'Repository name(owner/name)'
     required: true
+    default: ''
   tag_name:
     description: 'Tag name to release'
     required: true

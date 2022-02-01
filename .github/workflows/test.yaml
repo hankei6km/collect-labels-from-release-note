@@ -1,0 +1,78 @@
+name: Test action code
+on:
+  push:
+    branches:
+      - '**'
+      #- '!main'
+    tags:
+      - '!v*'
+
+jobs:
+  test-modules:
+    runs-on: ubuntu-latest
+    name: Test modiules
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+
+      - name: Cache node modules
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-push-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-push-${{ env.cache-name }}-
+            ${{ runner.os }}-push-
+
+      - name: Install modules
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test:build
+
+  test-main:
+    runs-on: ubuntu-latest
+    name: Test main
+    steps:
+      - name: Collect
+        id: collect
+        uses: hankei6km/collect-labels-from-release-note@v0.1.16
+        with:
+          token: ${{ secrets.GITHUB_TOKEN}}
+          repository: hankei6km/gas-md2html
+          tag_name: v0.5.0
+      - name: Contains item
+        run: test "${CONTAIN}" = "true"
+        env:
+          CONTAIN: ${{ contains(toJson(steps.collect.outputs.labels), 'testing') }}
+
+      - name: Collect(drop input)
+        id: collect_drop_input
+        continue-on-error: true
+        uses: hankei6km/collect-labels-from-release-note@v0.1.16
+        with:
+          token: ${{ secrets.GITHUB_TOKEN}}
+          tag_name: v0.5.0
+      - name: Check failure
+        run: test "${FAILURE}" = "failure"
+        env:
+          FAILURE: ${{ steps.collect_drop_input.outcome }}
+
+      - name: Collect(not exist)
+        id: collect_not_exist
+        continue-on-error: true
+        uses: hankei6km/collect-labels-from-release-note@v0.1.16
+        with:
+          token: ${{ secrets.GITHUB_TOKEN}}
+          repository: hankei6km/gas-md2html
+          tag_name: dummy
+      - name: Check failure
+        run: test "${FAILURE}" = "failure"
+        env:
+          FAILURE: ${{ steps.collect_not_exist.outcome }}

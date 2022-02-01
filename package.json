@@ -12,13 +12,8 @@
     "url": "https://github.com/hankei6km/collect-labels-from-release-note"
   },
   "keywords": [],
-  "main": "dist/index.js",
-  "exports": {
-    "import": "./dist/index.js",
-    "require": "./dist/index.cjs"
-  },
+  "main": "",
   "type": "module",
-  "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],

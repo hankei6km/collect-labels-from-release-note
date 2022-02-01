@@ -42,23 +42,23 @@ jobs:
     steps:
       - name: Collect
         id: collect
-        uses: hankei6km/collect-labels-from-release-note@v0.1.16
+        uses: hankei6km/collect-labels-from-release-note@v0.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN}}
-          repository: hankei6km/gas-md2html
-          tag_name: v0.5.0
+          repository: hankei6km/collect-labels-from-release-note
+          tag_name: v0.2.1
       - name: Contains item
         run: test "${CONTAIN}" = "true"
         env:
-          CONTAIN: ${{ contains(toJson(steps.collect.outputs.labels), 'testing') }}
+          CONTAIN: ${{ contains(toJson(steps.collect.outputs.labels), 'refactoring') }}
 
       - name: Collect(drop input)
         id: collect_drop_input
         continue-on-error: true
-        uses: hankei6km/collect-labels-from-release-note@v0.1.16
+        uses: hankei6km/collect-labels-from-release-note@v0.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN}}
-          tag_name: v0.5.0
+          tag_name: v0.2.1
       - name: Check failure
         run: test "${FAILURE}" = "failure"
         env:
@@ -67,10 +67,10 @@ jobs:
       - name: Collect(not exist)
         id: collect_not_exist
         continue-on-error: true
-        uses: hankei6km/collect-labels-from-release-note@v0.1.16
+        uses: hankei6km/collect-labels-from-release-note@v0.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN}}
-          repository: hankei6km/gas-md2html
+          repository: hankei6km/collect-labels-from-release-note
           tag_name: dummy
       - name: Check failure
         run: test "${FAILURE}" = "failure"

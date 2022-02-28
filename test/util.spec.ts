@@ -146,7 +146,12 @@ describe('labels()', () => {
     await expect(
       labels(octokit as any, 'test-user', 'test-name', [1, 2])
     ).resolves.toEqual(['abc', 'efg', '123', '456'])
-    expect(octokit.rest.pulls.get.mock.calls).toEqual([
+    expect(
+      octokit.rest.pulls.get.mock.calls.map((v: any) => {
+        delete v[0].request
+        return v
+      })
+    ).toEqual([
       [
         {
           mediaType: { format: 'json' },
@@ -160,6 +165,72 @@ describe('labels()', () => {
           mediaType: { format: 'json' },
           owner: 'test-user',
           pull_number: 2,
+          repo: 'test-name'
+        }
+      ]
+    ])
+  })
+  it('should return labels( > workerNum )', async () => {
+    const octokit = genOctokit([
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'abc' }, { name: 'efg' }]
+        }
+      }),
+      Promise.resolve({
+        data: {
+          labels: [{ name: '123' }, { name: '456' }]
+        }
+      }),
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'ABC' }, { name: 'EFG' }]
+        }
+      }),
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'hij' }, { name: 'klm' }]
+        }
+      })
+    ])
+    await expect(
+      labels(octokit as any, 'test-user', 'test-name', [1, 2, 3, 4])
+    ).resolves.toEqual(['abc', 'efg', '123', '456', 'ABC', 'EFG', 'hij', 'klm'])
+    expect(
+      octokit.rest.pulls.get.mock.calls.map((v: any) => {
+        delete v[0].request
+        return v
+      })
+    ).toEqual([
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 1,
+          repo: 'test-name'
+        }
+      ],
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 2,
+          repo: 'test-name'
+        }
+      ],
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 3,
+          repo: 'test-name'
+        }
+      ],
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 4,
           repo: 'test-name'
         }
       ]
@@ -189,10 +260,81 @@ describe('labels()', () => {
           labels: [{ name: 'abc' }, { name: 'efg' }]
         }
       }),
-      Promise.reject('error')
+      Promise.reject('TEST-ERROR')
     ])
     await expect(
       labels(octokit as any, 'test-user', 'test-name', [1, 2])
-    ).rejects.toThrowError(/occuered/)
+    ).rejects.toThrowError(/occuered.+TEST-ERROR/)
+  })
+  it('should throw error(cancel)', async () => {
+    const octokit = genOctokit([
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'abc' }, { name: 'efg' }]
+        }
+      }),
+      Promise.resolve({
+        data: {
+          labels: [{ name: '123' }, { name: '456' }]
+        }
+      }),
+      Promise.reject('TEST-ERROR1'),
+      Promise.reject('TEST-ERROR2'),
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'ABC' }, { name: 'EFG' }]
+        }
+      }),
+      Promise.resolve({
+        data: {
+          labels: [{ name: 'hij' }, { name: 'klm' }]
+        }
+      })
+    ])
+    await expect(
+      labels(octokit as any, 'test-user', 'test-name', [1, 2, 3, 4, 5])
+    ).rejects.toThrowError(/occuered.+TEST-ERROR1/)
+    expect(
+      octokit.rest.pulls.get.mock.calls.map((v: any) => {
+        delete v[0].request
+        return v
+      })
+    ).toEqual([
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 1,
+          repo: 'test-name'
+        }
+      ],
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 2,
+          repo: 'test-name'
+        }
+      ],
+      [
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 3,
+          repo: 'test-name'
+        }
+      ],
+      [
+        // reject 後の実行.
+        // signal で abort されているはずだが、現状ではチェックできていない.
+        // 全体的な cancel はできている(5 番目が実行されていない).
+        {
+          mediaType: { format: 'json' },
+          owner: 'test-user',
+          pull_number: 4,
+          repo: 'test-name'
+        }
+      ]
+    ])
   })
 })

@@ -27,6 +27,7 @@
   "dependencies": {
     "@actions/core": "^1.6.0",
     "@actions/github": "^5.0.0",
+    "chanpuru": "^0.1.1",
     "hast": "^1.0.0",
     "hast-util-from-parse5": "^7.1.0",
     "parse5": "^6.0.1",

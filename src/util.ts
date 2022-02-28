@@ -5,6 +5,14 @@ import { fromParse5 } from 'hast-util-from-parse5'
 import { Node } from 'unist'
 import { Element } from 'hast'
 import { visit } from 'unist-util-visit'
+import {
+  chainSignal,
+  Chan,
+  ChanRecv,
+  ChanSend,
+  emptyPromise,
+  workers
+} from 'chanpuru'
 
 export async function note(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -57,6 +65,65 @@ export function pulls(html: string, owner: string, name: string): number[] {
   return [...ret]
 }
 
+async function labelsFromPR(
+  signal: AbortSignal,
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  pr: number
+): Promise<string[]> {
+  return octokit.rest.pulls
+    .get({
+      owner,
+      repo,
+      pull_number: pr,
+      mediaType: {
+        format: 'json'
+      },
+      request: {
+        signal
+      }
+    })
+    .then(
+      ({ data }) =>
+        data.labels
+          .map(({ name }) => name)
+          .filter((value): value is string => typeof value === 'string') // string のみ.
+          .filter((value) => value) // '' 以外.
+    )
+}
+
+const workerNum = 3
+function pullRequesets(
+  [cancelPromise, cancel]: [Promise<void>, () => void],
+  sendErr: ChanSend<any>,
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  prs: number[]
+): ChanRecv<string[]> {
+  const ch = new Chan<() => Promise<string[]>>()
+  ;(async () => {
+    const [chainedPromise, signal] = chainSignal(cancelPromise)
+    // 今回は reject にされることはない.
+    // chainedPromise.catch(() => {})
+    for (const pr of prs) {
+      if (signal.aborted) {
+        break
+      }
+      await ch.send(() =>
+        labelsFromPR(signal, octokit, owner, repo, pr).catch((err) => {
+          sendErr(new Error(`labels: error occuered in call api: ${err}`))
+          cancel()
+          return Promise.reject(err) // reciver に到達させないため(worker 内で reject させる).
+        })
+      )
+    }
+    ch.close()
+  })()
+  return workers<string[]>(workerNum, ch.receiver())
+}
+
 export async function labels(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
@@ -64,25 +131,31 @@ export async function labels(
   prs: number[]
 ): Promise<string[]> {
   let ret: string[] = []
-  for (let pr of prs) {
-    const { data: pullRequest } = await octokit.rest.pulls
-      .get({
-        owner,
-        repo,
-        pull_number: pr,
-        mediaType: {
-          format: 'json'
-        }
-      })
-      .catch((err) => {
-        throw new Error('labels: error occuered in call api')
-      })
-    ret = ret.concat(
-      ...pullRequest.labels
-        .map(({ name }) => name)
-        .filter((value): value is string => typeof value === 'string') // string のみ.
-        .filter((value) => value) // '' 以外.
-    )
+  const [cancelPromise, cancel] = emptyPromise()
+  let err: any
+  const errCh = new Chan<any>()
+  const recv = pullRequesets(
+    [cancelPromise, cancel],
+    errCh.send,
+    octokit,
+    owner,
+    repo,
+    prs
+  )
+  ;(async () => {
+    for await (const i of errCh.receiver()) {
+      if (err === undefined) {
+        err = i
+      }
+    }
+  })()
+  for await (const i of recv) {
+    ret = ret.concat(i)
+  }
+  errCh.close()
+  cancel()
+  if (err) {
+    throw err
   }
   return [...new Set<string>(ret)]
 }

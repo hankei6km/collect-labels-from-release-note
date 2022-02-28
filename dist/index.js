@@ -16376,7 +16376,9 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__) => {
 /* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(_actions_core__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _actions_github__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(5438);
 /* harmony import */ var _actions_github__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(_actions_github__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var _util__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(1506);
+/* harmony import */ var _util__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(2629);
+var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([_util__WEBPACK_IMPORTED_MODULE_2__]);
+_util__WEBPACK_IMPORTED_MODULE_2__ = (__webpack_async_dependencies__.then ? await __webpack_async_dependencies__ : __webpack_async_dependencies__)[0];
 
 
 
@@ -16405,15 +16407,669 @@ __webpack_handle_async_dependencies__();
 
 /***/ }),
 
-/***/ 1506:
-/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+/***/ 2629:
+/***/ ((module, __webpack_exports__, __nccwpck_require__) => {
+
+__nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__) => {
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   "JP": () => (/* binding */ note),
+/* harmony export */   "UL": () => (/* binding */ pulls),
+/* harmony export */   "p8": () => (/* binding */ labels)
+/* harmony export */ });
+/* harmony import */ var parse5__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(5598);
+/* harmony import */ var hast_util_from_parse5__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(1158);
+/* harmony import */ var unist_util_visit__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(3639);
+/* harmony import */ var chanpuru__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(7519);
+var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([chanpuru__WEBPACK_IMPORTED_MODULE_1__]);
+chanpuru__WEBPACK_IMPORTED_MODULE_1__ = (__webpack_async_dependencies__.then ? await __webpack_async_dependencies__ : __webpack_async_dependencies__)[0];
+
+
+
+
+async function note(octokit, owner, name, tagName) {
+    const { repository } = await octokit.graphql(`
+query ($owner: String!, $name: String!, $tagName: String!) {
+  repository(owner:$owner, name:$name) {
+    release(tagName:$tagName){
+      descriptionHTML
+    }
+  }
+}
+`, { owner, name, tagName });
+    if (repository && repository.release && repository.release.descriptionHTML) {
+        return repository.release.descriptionHTML;
+    }
+    throw new Error('note: "descriptionHTML" is not included in response');
+}
+function isElement(node) {
+    return node.type === 'element';
+}
+const pullsNumRegExp = /^[0-9]+$/;
+function pulls(html, owner, name) {
+    const ret = new Set([]);
+    const p5ast = parse5__WEBPACK_IMPORTED_MODULE_0__.parseFragment(String(html), {
+        sourceCodeLocationInfo: true
+    });
+    const n = (0,hast_util_from_parse5__WEBPACK_IMPORTED_MODULE_2__/* .fromParse5 */ .e)(p5ast);
+    (0,unist_util_visit__WEBPACK_IMPORTED_MODULE_3__/* .visit */ .Vn)(n, (node) => {
+        // visitTest にはわけない,
+        if (isElement(node) &&
+            node.tagName === 'a' &&
+            typeof node.properties?.href === 'string') {
+            const a = node.properties.href.split('/');
+            if (a[3] === owner && a[4] === name && a[6].match(pullsNumRegExp)) {
+                ret.add(Number.parseInt(a[6], 10));
+            }
+        }
+    });
+    return [...ret];
+}
+async function labelsFromPR(signal, octokit, owner, repo, pr) {
+    return octokit.rest.pulls
+        .get({
+        owner,
+        repo,
+        pull_number: pr,
+        mediaType: {
+            format: 'json'
+        },
+        request: {
+            signal
+        }
+    })
+        .then(({ data }) => data.labels
+        .map(({ name }) => name)
+        .filter((value) => typeof value === 'string') // string のみ.
+        .filter((value) => value) // '' 以外.
+    );
+}
+const workerNum = 3;
+function pullRequesets([cancelPromise, cancel], sendErr, octokit, owner, repo, prs) {
+    const ch = new chanpuru__WEBPACK_IMPORTED_MODULE_1__/* .Chan */ .Ke();
+    (async () => {
+        const [chainedPromise, signal] = (0,chanpuru__WEBPACK_IMPORTED_MODULE_1__/* .chainSignal */ .Nk)(cancelPromise);
+        // 今回は reject にされることはない.
+        // chainedPromise.catch(() => {})
+        for (const pr of prs) {
+            if (signal.aborted) {
+                break;
+            }
+            await ch.send(() => labelsFromPR(signal, octokit, owner, repo, pr).catch((err) => {
+                sendErr(new Error(`labels: error occuered in call api: ${err}`));
+                cancel();
+                return Promise.reject(err); // reciver に到達させないため(worker 内で reject させる).
+            }));
+        }
+        ch.close();
+    })();
+    return (0,chanpuru__WEBPACK_IMPORTED_MODULE_1__/* .workers */ .CB)(workerNum, ch.receiver());
+}
+async function labels(octokit, owner, repo, prs) {
+    let ret = [];
+    const [cancelPromise, cancel] = (0,chanpuru__WEBPACK_IMPORTED_MODULE_1__/* .emptyPromise */ .sX)();
+    let err;
+    const errCh = new chanpuru__WEBPACK_IMPORTED_MODULE_1__/* .Chan */ .Ke();
+    const recv = pullRequesets([cancelPromise, cancel], errCh.send, octokit, owner, repo, prs);
+    (async () => {
+        for await (const i of errCh.receiver()) {
+            if (err === undefined) {
+                err = i;
+            }
+        }
+    })();
+    for await (const i of recv) {
+        ret = ret.concat(i);
+    }
+    errCh.close();
+    cancel();
+    if (err) {
+        throw err;
+    }
+    return [...new Set(ret)];
+}
+
+});
+
+/***/ }),
+
+/***/ 2877:
+/***/ ((module) => {
+
+module.exports = eval("require")("encoding");
+
+
+/***/ }),
+
+/***/ 9491:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("assert");
+
+/***/ }),
+
+/***/ 2361:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("events");
+
+/***/ }),
+
+/***/ 7147:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("fs");
+
+/***/ }),
+
+/***/ 3685:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("http");
+
+/***/ }),
+
+/***/ 5687:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("https");
+
+/***/ }),
+
+/***/ 1808:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("net");
+
+/***/ }),
+
+/***/ 2037:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("os");
+
+/***/ }),
+
+/***/ 1017:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("path");
+
+/***/ }),
+
+/***/ 5477:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("punycode");
+
+/***/ }),
+
+/***/ 2781:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("stream");
+
+/***/ }),
+
+/***/ 4404:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("tls");
+
+/***/ }),
+
+/***/ 7310:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("url");
+
+/***/ }),
+
+/***/ 3837:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("util");
+
+/***/ }),
+
+/***/ 9796:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("zlib");
+
+/***/ }),
+
+/***/ 7519:
+/***/ ((__webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+__nccwpck_require__.a(__webpack_module__, async (__webpack_handle_async_dependencies__) => {
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   "Ke": () => (/* reexport safe */ _lib_chan_js__WEBPACK_IMPORTED_MODULE_0__.K),
+/* harmony export */   "CB": () => (/* reexport safe */ _lib_workers_js__WEBPACK_IMPORTED_MODULE_1__.CB),
+/* harmony export */   "sX": () => (/* reexport safe */ _lib_cancel_js__WEBPACK_IMPORTED_MODULE_2__.sX),
+/* harmony export */   "Nk": () => (/* reexport safe */ _lib_cancel_js__WEBPACK_IMPORTED_MODULE_2__.Nk)
+/* harmony export */ });
+/* harmony import */ var _lib_chan_js__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(2882);
+/* harmony import */ var _lib_workers_js__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(3780);
+/* harmony import */ var _lib_cancel_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(8575);
+var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([_lib_cancel_js__WEBPACK_IMPORTED_MODULE_2__]);
+_lib_cancel_js__WEBPACK_IMPORTED_MODULE_2__ = (__webpack_async_dependencies__.then ? await __webpack_async_dependencies__ : __webpack_async_dependencies__)[0];
+
+
+
+
+
+
+});
+
+/***/ }),
+
+/***/ 8575:
+/***/ ((__webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+__nccwpck_require__.a(__webpack_module__, async (__webpack_handle_async_dependencies__) => {
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   "sX": () => (/* binding */ emptyPromise),
+/* harmony export */   "Nk": () => (/* binding */ chainSignal)
+/* harmony export */ });
+/* unused harmony exports CancelPromiseRejected, abortPromise, timeoutPromise, mixPromise */
+// import { AbortController } from 'abort-controller'
+const AbortController = globalThis.AbortController ||
+    (await __nccwpck_require__.e(/* import() */ 659).then(__nccwpck_require__.t.bind(__nccwpck_require__, 1659, 19))).AbortController;
+/**
+ * Class reperesenting a error that is thrown when Cancel Promise is rejected.
+ */
+class CancelPromiseRejected extends Error {
+    constructor(message) {
+        //https://stackoverflow.com/questions/41102060/typescript-extending-error-class
+        super(message);
+        Object.setPrototypeOf(this, CancelPromiseRejected.prototype);
+    }
+    get reason() {
+        return this.message;
+    }
+}
+/**
+ * Make empty `Promise` instance to used trigger to cancel context.
+ * @returns - Instance of `Promise` with cancel(resolve) function ot `Promise`.
+ */
+function emptyPromise() {
+    let pickResolve;
+    const cancel = () => {
+        pickResolve();
+    };
+    const p = new Promise((resolve, reject) => {
+        pickResolve = resolve;
+    });
+    return [p, cancel];
+}
+/**
+ * Make `Promise` instance with abort trigger to cancel context.
+ * @param signal - Instance of AbortSignal to reject `Promise`.
+ * @returns - Instance of `Promise` with cancel(resolve) function ot `Promise`.
+ */
+function abortPromise(signal) {
+    let pickResolve;
+    const cancel = () => {
+        pickResolve();
+    };
+    let pickReject;
+    const handleAbort = () => {
+        pickReject(new CancelPromiseRejected('Aborted'));
+    };
+    const p = new Promise((resolve, reject) => {
+        pickResolve = resolve;
+        pickReject = reject;
+        signal.addEventListener('abort', handleAbort);
+    }).then(() => {
+        signal.removeEventListener('abort', handleAbort);
+        return;
+    }, (r) => {
+        signal.removeEventListener('abort', handleAbort);
+        return Promise.reject(r);
+    });
+    return [p, cancel];
+}
+/**
+ *
+ * Make `Promise` instance with abort trigger to cancel context.
+ * @param timeout - Set value to timeout to reject `Promise`.
+ * @returns - Instance of `Promise` with cancel(resolve) function ot `Promise`.
+ */
+function timeoutPromise(timeout) {
+    let id = undefined;
+    let pickResolve;
+    const cancel = () => {
+        if (id !== undefined) {
+            clearTimeout(id);
+        }
+        pickResolve();
+    };
+    const p = new Promise((resolve, reject) => {
+        pickResolve = resolve;
+        id = setTimeout(() => {
+            id = undefined;
+            reject(new CancelPromiseRejected('Timeout'));
+        }, timeout);
+    });
+    return [p, cancel];
+}
+/**
+ * Make `Promise` instance that is settled by result from  `Promise.race`.
+ * @param cancelPromises - Array that is contained instance of `Promise` with cancellation function.
+ * @returns - Instance of `Promise` with cancel(resolve) function ot `Promise`.
+ */
+function mixPromise(cancelPromises) {
+    const race = Promise.race(cancelPromises.map(([p]) => p))
+        .then(() => cancelAll())
+        .catch((r) => {
+        cancelAll();
+        return Promise.reject(r);
+    });
+    const cancelAll = () => {
+        cancelPromises.forEach(([_c, cancel]) => cancel());
+    };
+    return [race, cancelAll];
+}
+/**
+ * Make `AbortSignal` instance that will be abroted at `Promise` has sttled.
+ * @param promise - Instance of `Promise` to used to abort signal.
+ * @returns - Instance of `Promise` with signal that will be aborted at `Promise` has sttled.
+ */
+function chainSignal(promise) {
+    const ac = new AbortController();
+    const p = promise
+        .then(() => {
+        ac.abort();
+    })
+        .catch((r) => {
+        ac.abort();
+        return Promise.reject(r);
+    });
+    return [p, ac.signal];
+}
+
+__webpack_handle_async_dependencies__();
+}, 1);
+
+/***/ }),
+
+/***/ 2882:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   "K": () => (/* binding */ Chan)
+/* harmony export */ });
+/**
+ * Class reperesenting a channel.
+ * @template T - Type of the value that will be send via Channel.
+ */
+class Chan {
+    /**
+     * Make a channel.
+     * @param bufSize - size of buffer in channel.
+     * @param opts - options.
+     */
+    constructor(bufSize = 0, opts = {}) {
+        this.opts = { rejectInReceiver: false };
+        this.bufSize = 0;
+        this.generatorClosed = false;
+        this.closed = false;
+        /**
+         * Send the value to receiver via channel.
+         * This method required to call with `await`.
+         * It will be blocking durring buffer is filled.
+         * ```
+         * await ch.send(value)
+         * ```
+         * @param value - the value
+         * @returns
+         */
+        this.send = async (value) => {
+            if (this.closed) {
+                throw new Error('panic: send on closed channel');
+            }
+            // TOOD: generatorClosed でループを抜けたかのステータスを返すか検討.
+            // rejectInReceiver が有効だとバッファーに乗っているものでもドロップするので、
+            // (yeield で reject を for await...of などに渡すと finally が実行されるので)
+            // ここのステータスだけわかってもあまり意味はないか.
+            return this.sendFunc(value);
+        };
+        if (opts.rejectInReceiver !== undefined) {
+            this.opts.rejectInReceiver = opts.rejectInReceiver;
+        }
+        this.bufSize = bufSize === 0 ? 1 : bufSize; // バッファーサイズ 0 のときも内部的にはバッファーは必要.
+        this.sendFunc = bufSize === 0 ? this._sendWithoutBuf : this._sendWithBuf;
+        this.buf = [];
+        this.bufReset();
+        this.valueReset();
+    }
+    bufReset() {
+        this.bufPromise = new Promise((resolve) => {
+            this.bufResolve = resolve;
+        });
+    }
+    bufRelease() {
+        this.bufResolve();
+    }
+    valueReset() {
+        this.valuePromise = new Promise((resolve, reject) => {
+            this.valueResolve = resolve;
+        });
+    }
+    valueRelease() {
+        this.valueResolve();
+    }
+    async _sendWithoutBuf(p) {
+        while (!this.generatorClosed) {
+            if (this.buf.length < this.bufSize) {
+                this.buf.push(p);
+                this.bufRelease();
+                await this.valuePromise;
+                return;
+            }
+            await this.valuePromise;
+        }
+    }
+    async _sendWithBuf(p) {
+        while (!this.generatorClosed) {
+            if (this.buf.length < this.bufSize) {
+                this.buf.push(p);
+                this.bufRelease();
+                return;
+            }
+            await this.valuePromise;
+        }
+    }
+    async gate() {
+        // バッファーが埋まっていない場合は、send されるまで待つ.
+        // close されていれば素通し.
+        while (this.buf.length === 0 && !this.closed) {
+            await this.bufPromise;
+            this.bufReset();
+        }
+        // バッファーを消費していたら終了.
+        // 通常は消費しない、close されていれば何度か呼びだされるうちに消費される.
+        if (this.buf.length > 0) {
+            return { done: false };
+        }
+        return { done: true };
+    }
+    /**
+     * Get async generator to receive the value was sended.
+     * @returns - Async Generator.
+     */
+    async *receiver() {
+        try {
+            while (true) {
+                try {
+                    const i = await this.gate();
+                    if (i.done) {
+                        return;
+                    }
+                    const v = await this.buf[0];
+                    // バッファーを空ける(yeild の後でやると次回の next() まで実行されないので注意).
+                    this.buf.shift();
+                    // send 側へ空きができたことを通知.
+                    this.valueRelease();
+                    this.valueReset();
+                    yield v;
+                }
+                catch (e) {
+                    // rejct された場合もバッファーを空ける.
+                    this.buf.shift();
+                    // send 側へ空きができたことを通知.
+                    this.valueRelease();
+                    this.valueReset();
+                    if (this.opts.rejectInReceiver) {
+                        // value が Promise だった場合、receiver 側の for await...of などに reject を伝播させる.
+                        yield Promise.reject(e);
+                    }
+                }
+            }
+        }
+        finally {
+            this.generatorClosed = true;
+            this.clean();
+        }
+    }
+    clean() {
+        this.bufRelease();
+        this.valueRelease();
+    }
+    /**
+     * Close channel.
+     */
+    close() {
+        this.closed = true;
+        this.clean();
+    }
+}
+
+
+/***/ }),
+
+/***/ 3780:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   "CB": () => (/* binding */ workers)
+/* harmony export */ });
+/* unused harmony exports _payloadsOverTake, _payloads, payloads */
+/* harmony import */ var _chan_js__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(2882);
+
+function workersOptsDefault() {
+    return {
+        keepOrder: false
+    };
+}
+async function workerOVertake(send, recv) {
+    for await (let i of recv) {
+        try {
+            await send(await i());
+        }
+        catch { }
+    }
+}
+async function worker(send, recv) {
+    for await (let i of recv) {
+        await send(i());
+    }
+}
+function workerArray(max, f, send, recv) {
+    const w = [];
+    for (let i = 0; i < max; i++) {
+        w.push(f(send, recv));
+    }
+    return w;
+}
+/**
+ * Run workers instance.
+ *
+ * worksers run instance of `Promise` that is return from the funtcion received from receiver.
+ * @template - Type of the value that will be return from instance of `Promise`.
+ * @param max - Maximum number of worker to run instance of `Promise`.
+ * @param recv - Receiver(Async generator) to recieve the function that is return instance of `Promise` in worker.
+ * @param opts - Options.
+ * @returns Receiver the value that is generated from insance of `Promise`.
+ */
+function workers(max, recv, opts = {}) {
+    const { keepOrder } = Object.assign(workersOptsDefault(), opts);
+    const ch = new _chan_js__WEBPACK_IMPORTED_MODULE_0__/* .Chan */ .K(0);
+    (async () => {
+        await Promise.all(workerArray(max, opts.keepOrder ? worker : workerOVertake, ch.send, recv));
+        ch.close();
+    })();
+    return ch.receiver();
+}
+async function payloadOvertake(send, recv) {
+    for await (let i of recv) {
+        try {
+            await send([await i[0](), i[1]]);
+        }
+        catch { }
+    }
+}
+async function payload(send, recv) {
+    for await (let i of recv) {
+        await send([i[0](), i[1]]);
+    }
+}
+function _payloadsOverTake(max, recv, opts) {
+    const ch = new Chan(0);
+    (async () => {
+        await Promise.all(workerArray(max, payloadOvertake, ch.send, recv));
+        ch.close();
+    })();
+    return ch.receiver();
+}
+function _payloads(max, recv, opts) {
+    const awaitCh = new Chan(0);
+    const ch = new Chan(0);
+    (async () => {
+        await Promise.all(workerArray(max - 1, // awaitCh で 1 つ実行状態になるので -1 する.
+        payload, awaitCh.send, recv));
+        awaitCh.close();
+    })();
+    (async () => {
+        for await (let i of awaitCh.receiver()) {
+            try {
+                ch.send([await i[0], i[1]]);
+            }
+            catch { }
+        }
+        ch.close();
+    })();
+    return ch.receiver();
+}
+/**
+ * Run payloads instance.
+ *
+ * payload is receive array that is contained function(it return instance of `Promose`) and the value(payload).
+ * @param max - Maximum number of payload to run instance of `Promise`.
+ * @param recv - Receiver(Async generator) to receive the function that is return instance of `Promise` in payload and the value.
+ * @param opts - Options.
+ * @returns Receiver the value that is generated from insance of `Promise` and the value was sended payload.
+ */
+function payloads(max, recv, opts = {}) {
+    const { keepOrder } = Object.assign(workersOptsDefault(), opts);
+    if (keepOrder && max > 1) {
+        // 同時実行数 1 では対応できない.
+        // (1 なら順庵はかわらないので _payloadsOverTake を利用)
+        return _payloads(max, recv, opts);
+    }
+    return _payloadsOverTake(max, recv, opts);
+}
+
+
+/***/ }),
+
+/***/ 1158:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
 
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
-  "p8": () => (/* binding */ labels),
-  "JP": () => (/* binding */ note),
-  "UL": () => (/* binding */ pulls)
+  "e": () => (/* binding */ fromParse5)
 });
 
 // NAMESPACE OBJECT: ./node_modules/property-information/lib/util/types.js
@@ -16429,8 +17085,6 @@ __nccwpck_require__.d(types_namespaceObject, {
   "spaceSeparated": () => (spaceSeparated)
 });
 
-// EXTERNAL MODULE: ./node_modules/parse5/lib/index.js
-var lib = __nccwpck_require__(5598);
 ;// CONCATENATED MODULE: ./node_modules/property-information/lib/util/schema.js
 /**
  * @typedef {import('./info.js').Info} Info
@@ -18693,6 +19347,20 @@ function isFile(value) {
   return 'messages' in value
 }
 
+
+/***/ }),
+
+/***/ 3639:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  "Vn": () => (/* binding */ visit)
+});
+
+// UNUSED EXPORTS: CONTINUE, EXIT, SKIP
+
 ;// CONCATENATED MODULE: ./node_modules/unist-util-is/index.js
 /**
  * @typedef {import('unist').Node} Node
@@ -19168,178 +19836,6 @@ const visit =
     }
   )
 
-;// CONCATENATED MODULE: ./src/util.ts
-
-
-
-async function note(octokit, owner, name, tagName) {
-    const { repository } = await octokit.graphql(`
-query ($owner: String!, $name: String!, $tagName: String!) {
-  repository(owner:$owner, name:$name) {
-    release(tagName:$tagName){
-      descriptionHTML
-    }
-  }
-}
-`, { owner, name, tagName });
-    if (repository && repository.release && repository.release.descriptionHTML) {
-        return repository.release.descriptionHTML;
-    }
-    throw new Error('note: "descriptionHTML" is not included in response');
-}
-function isElement(node) {
-    return node.type === 'element';
-}
-const pullsNumRegExp = /^[0-9]+$/;
-function pulls(html, owner, name) {
-    const ret = new Set([]);
-    const p5ast = lib.parseFragment(String(html), {
-        sourceCodeLocationInfo: true
-    });
-    const n = fromParse5(p5ast);
-    visit(n, (node) => {
-        // visitTest にはわけない,
-        if (isElement(node) &&
-            node.tagName === 'a' &&
-            typeof node.properties?.href === 'string') {
-            const a = node.properties.href.split('/');
-            if (a[3] === owner && a[4] === name && a[6].match(pullsNumRegExp)) {
-                ret.add(Number.parseInt(a[6], 10));
-            }
-        }
-    });
-    return [...ret];
-}
-async function labels(octokit, owner, repo, prs) {
-    let ret = [];
-    for (let pr of prs) {
-        const { data: pullRequest } = await octokit.rest.pulls
-            .get({
-            owner,
-            repo,
-            pull_number: pr,
-            mediaType: {
-                format: 'json'
-            }
-        })
-            .catch((err) => {
-            throw new Error('labels: error occuered in call api');
-        });
-        ret = ret.concat(...pullRequest.labels
-            .map(({ name }) => name)
-            .filter((value) => typeof value === 'string') // string のみ.
-            .filter((value) => value) // '' 以外.
-        );
-    }
-    return [...new Set(ret)];
-}
-
-
-/***/ }),
-
-/***/ 2877:
-/***/ ((module) => {
-
-module.exports = eval("require")("encoding");
-
-
-/***/ }),
-
-/***/ 9491:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("assert");
-
-/***/ }),
-
-/***/ 2361:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("events");
-
-/***/ }),
-
-/***/ 7147:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("fs");
-
-/***/ }),
-
-/***/ 3685:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("http");
-
-/***/ }),
-
-/***/ 5687:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("https");
-
-/***/ }),
-
-/***/ 1808:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("net");
-
-/***/ }),
-
-/***/ 2037:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("os");
-
-/***/ }),
-
-/***/ 1017:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("path");
-
-/***/ }),
-
-/***/ 5477:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("punycode");
-
-/***/ }),
-
-/***/ 2781:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("stream");
-
-/***/ }),
-
-/***/ 4404:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("tls");
-
-/***/ }),
-
-/***/ 7310:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("url");
-
-/***/ }),
-
-/***/ 3837:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("util");
-
-/***/ }),
-
-/***/ 9796:
-/***/ ((module) => {
-
-module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("zlib");
 
 /***/ }),
 
@@ -19381,6 +19877,9 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ 	// Return the exports of the module
 /******/ 	return module.exports;
 /******/ }
+/******/ 
+/******/ // expose the modules object (__webpack_modules__)
+/******/ __nccwpck_require__.m = __webpack_modules__;
 /******/ 
 /************************************************************************/
 /******/ /* webpack/runtime/async module */
@@ -19469,6 +19968,36 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ 	};
 /******/ })();
 /******/ 
+/******/ /* webpack/runtime/create fake namespace object */
+/******/ (() => {
+/******/ 	var getProto = Object.getPrototypeOf ? (obj) => (Object.getPrototypeOf(obj)) : (obj) => (obj.__proto__);
+/******/ 	var leafPrototypes;
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 16: return value when it's Promise-like
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__nccwpck_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = this(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if(typeof value === 'object' && value) {
+/******/ 			if((mode & 4) && value.__esModule) return value;
+/******/ 			if((mode & 16) && typeof value.then === 'function') return value;
+/******/ 		}
+/******/ 		var ns = Object.create(null);
+/******/ 		__nccwpck_require__.r(ns);
+/******/ 		var def = {};
+/******/ 		leafPrototypes = leafPrototypes || [null, getProto({}), getProto([]), getProto(getProto)];
+/******/ 		for(var current = mode & 2 && value; typeof current == 'object' && !~leafPrototypes.indexOf(current); current = getProto(current)) {
+/******/ 			Object.getOwnPropertyNames(current).forEach((key) => (def[key] = () => (value[key])));
+/******/ 		}
+/******/ 		def['default'] = () => (value);
+/******/ 		__nccwpck_require__.d(ns, def);
+/******/ 		return ns;
+/******/ 	};
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/define property getters */
 /******/ (() => {
 /******/ 	// define getter functions for harmony exports
@@ -19478,6 +20007,28 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
 /******/ 			}
 /******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/ensure chunk */
+/******/ (() => {
+/******/ 	__nccwpck_require__.f = {};
+/******/ 	// This file contains only the entry chunk.
+/******/ 	// The chunk loading function for additional chunks
+/******/ 	__nccwpck_require__.e = (chunkId) => {
+/******/ 		return Promise.all(Object.keys(__nccwpck_require__.f).reduce((promises, key) => {
+/******/ 			__nccwpck_require__.f[key](chunkId, promises);
+/******/ 			return promises;
+/******/ 		}, []));
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/get javascript chunk filename */
+/******/ (() => {
+/******/ 	// This function allow to reference async chunks
+/******/ 	__nccwpck_require__.u = (chunkId) => {
+/******/ 		// return url for filenames based on template
+/******/ 		return "" + chunkId + ".index.js";
 /******/ 	};
 /******/ })();
 /******/ 
@@ -19500,6 +20051,65 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
+/******/ 
+/******/ /* webpack/runtime/import chunk loading */
+/******/ (() => {
+/******/ 	// no baseURI
+/******/ 	
+/******/ 	// object to store loaded and loading chunks
+/******/ 	// undefined = chunk not loaded, null = chunk preloaded/prefetched
+/******/ 	// [resolve, reject, Promise] = chunk loading, 0 = chunk loaded
+/******/ 	var installedChunks = {
+/******/ 		179: 0
+/******/ 	};
+/******/ 	
+/******/ 	var installChunk = (data) => {
+/******/ 		var {ids, modules, runtime} = data;
+/******/ 		// add "modules" to the modules object,
+/******/ 		// then flag all "ids" as loaded and fire callback
+/******/ 		var moduleId, chunkId, i = 0;
+/******/ 		for(moduleId in modules) {
+/******/ 			if(__nccwpck_require__.o(modules, moduleId)) {
+/******/ 				__nccwpck_require__.m[moduleId] = modules[moduleId];
+/******/ 			}
+/******/ 		}
+/******/ 		if(runtime) runtime(__nccwpck_require__);
+/******/ 		for(;i < ids.length; i++) {
+/******/ 			chunkId = ids[i];
+/******/ 			if(__nccwpck_require__.o(installedChunks, chunkId) && installedChunks[chunkId]) {
+/******/ 				installedChunks[chunkId][0]();
+/******/ 			}
+/******/ 			installedChunks[ids[i]] = 0;
+/******/ 		}
+/******/ 	
+/******/ 	}
+/******/ 	
+/******/ 	__nccwpck_require__.f.j = (chunkId, promises) => {
+/******/ 			// import() chunk loading for javascript
+/******/ 			var installedChunkData = __nccwpck_require__.o(installedChunks, chunkId) ? installedChunks[chunkId] : undefined;
+/******/ 			if(installedChunkData !== 0) { // 0 means "already installed".
+/******/ 	
+/******/ 				// a Promise means "currently loading".
+/******/ 				if(installedChunkData) {
+/******/ 					promises.push(installedChunkData[1]);
+/******/ 				} else {
+/******/ 					if(true) { // all chunks have JS
+/******/ 						// setup Promise in chunk cache
+/******/ 						var promise = import("./" + __nccwpck_require__.u(chunkId)).then(installChunk, (e) => {
+/******/ 							if(installedChunks[chunkId] !== 0) installedChunks[chunkId] = undefined;
+/******/ 							throw e;
+/******/ 						});
+/******/ 						var promise = Promise.race([promise, new Promise((resolve) => (installedChunkData = installedChunks[chunkId] = [resolve]))])
+/******/ 						promises.push(installedChunkData[1] = promise);
+/******/ 					} else installedChunks[chunkId] = 0;
+/******/ 				}
+/******/ 			}
+/******/ 	};
+/******/ 	
+/******/ 	// no external install chunk
+/******/ 	
+/******/ 	// no on chunks loaded
+/******/ })();
 /******/ 
 /************************************************************************/
 /******/ 
